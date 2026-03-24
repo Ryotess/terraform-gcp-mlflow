@@ -1,0 +1,13 @@
+environment               = "dev"
+name_prefix               = "mlflow"
+db_tier                   = "db-custom-1-3840"
+db_disk_size_gb           = 20
+db_availability_type      = "ZONAL"
+cloud_run_cpu             = "2"
+cloud_run_memory          = "2Gi"
+cloud_run_timeout_seconds = 300
+cloud_run_concurrency     = 40
+cloud_run_min_instances   = 0
+cloud_run_max_instances   = 3
+artifact_retention_days   = 30
+deletion_protection       = false

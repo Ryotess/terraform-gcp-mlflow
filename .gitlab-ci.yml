@@ -1,0 +1,125 @@
+stages:
+  - bootstrap_image
+  - terraform_validate
+  - terraform_plan
+  - terraform_apply
+  - terraform_destroy
+
+variables:
+  TF_ROOT: "infra"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_CLI_ARGS_init: "-input=false"
+  TF_CLI_ARGS_plan: "-input=false"
+  TF_CLI_ARGS_apply: "-input=false -auto-approve"
+  TF_CLI_ARGS_destroy: "-input=false -auto-approve"
+  TERRAFORM_VERSION: "1.11.2"
+  DEPLOY_ENV: "dev"
+
+default:
+  image: google/cloud-sdk:slim
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends bash curl unzip
+    - bash scripts/ci/select_env.sh "${DEPLOY_ENV}"
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "api"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: &ci_relevant_changes
+        - infra/**/*
+        - scripts/**/*
+        - .gitlab-ci.yml
+        - Dockerfile
+        - entrypoint.sh
+    - if: $CI_COMMIT_BRANCH
+      changes: *ci_relevant_changes
+    - when: never
+
+bootstrap_image:
+  stage: bootstrap_image
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: $GITLAB_OIDC_AUDIENCE
+  script:
+    - source .tmp/deploy.env
+    - source scripts/ci/setup_gcp_wif.sh "${GCP_ARTIFACT_PUSH_SA}"
+    - bash scripts/ci/bootstrap_artifact_registry.sh
+  artifacts:
+    reports:
+      dotenv: .tmp/image.env
+
+terraform_validate:
+  stage: terraform_validate
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: $GITLAB_OIDC_AUDIENCE
+  script:
+    - source .tmp/deploy.env
+    - source scripts/ci/setup_gcp_wif.sh "${GCP_TERRAFORM_SA}"
+    - bash scripts/ci/install_terraform.sh "${TERRAFORM_VERSION}"
+    - cd "${TF_ROOT}"
+    - terraform init -backend=false
+    - terraform fmt -check -recursive
+    - terraform validate
+
+terraform_plan:
+  stage: terraform_plan
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: $GITLAB_OIDC_AUDIENCE
+  needs:
+    - job: bootstrap_image
+      artifacts: true
+  script:
+    - source .tmp/deploy.env
+    - source scripts/ci/setup_gcp_wif.sh "${GCP_TERRAFORM_SA}"
+    - bash scripts/ci/install_terraform.sh "${TERRAFORM_VERSION}"
+    - cd "${TF_ROOT}"
+    - terraform init -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="prefix=${TF_STATE_PREFIX}/${DEPLOY_ENV}"
+    - terraform plan -out="plan-${DEPLOY_ENV}.tfplan" -var="project_id=${GCP_PROJECT_ID}" -var="region=${GCP_REGION}" -var="mlflow_image=${TF_VAR_mlflow_image}" -var-file="environments/${DEPLOY_ENV}.tfvars"
+  artifacts:
+    paths:
+      - infra/plan-*.tfplan
+
+terraform_apply:
+  stage: terraform_apply
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: $GITLAB_OIDC_AUDIENCE
+  needs:
+    - job: terraform_plan
+      artifacts: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_TAG
+      when: manual
+    - when: never
+  script:
+    - source .tmp/deploy.env
+    - source scripts/ci/setup_gcp_wif.sh "${GCP_TERRAFORM_SA}"
+    - bash scripts/ci/install_terraform.sh "${TERRAFORM_VERSION}"
+    - cd "${TF_ROOT}"
+    - terraform init -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="prefix=${TF_STATE_PREFIX}/${DEPLOY_ENV}"
+    - terraform apply "plan-${DEPLOY_ENV}.tfplan"
+
+terraform_destroy:
+  stage: terraform_destroy
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: $GITLAB_OIDC_AUDIENCE
+  needs: []
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_TAG
+      when: manual
+    - when: never
+  script:
+    - source .tmp/deploy.env
+    - bash scripts/ci/install_terraform.sh "${TERRAFORM_VERSION}"
+    - bash scripts/ci/terraform_destroy.sh

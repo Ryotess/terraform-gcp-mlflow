@@ -1,0 +1,13 @@
+environment                       = "stg"
+name_prefix                       = "mlflow"
+db_tier                           = "db-custom-2-7680"
+db_disk_size_gb                   = 50
+db_availability_type              = "ZONAL"
+db_point_in_time_recovery_enabled = true
+cloud_run_cpu                     = "1"
+cloud_run_memory                  = "2Gi"
+cloud_run_timeout_seconds         = 300
+cloud_run_concurrency             = 40
+cloud_run_min_instances           = 1
+cloud_run_max_instances           = 5
+artifact_retention_days           = 90
