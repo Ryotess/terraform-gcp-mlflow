@@ -1,6 +1,6 @@
 # terraform-gcp-mlflow
 
-[![Terraform Check](https://github.com/Ryotess/terraform-gcp-mlflow/actions/workflows/terraform-check.yml/badge.svg)](https://github.com/Ryotess/terraform-gcp-mlflow/actions/workflows/terraform-check.yml)
+[![Terraform Check](https://github.com/Ryotess/terraform-gcp-mlflow/actions/workflows/terraform-check.yml/badge.svg?branch=main)](https://github.com/Ryotess/terraform-gcp-mlflow/actions/workflows/terraform-check.yml?query=branch%3Amain)
 
 Infrastructure as Code project for deploying MLflow on Google Cloud Platform using Terraform.
 
