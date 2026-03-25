@@ -11,7 +11,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install \
-    "mlflow[auth]==${MLFLOW_VERSION}" \
+    "mlflow[auth,genai]==${MLFLOW_VERSION}" \
     psycopg2-binary \
     google-cloud-storage
 

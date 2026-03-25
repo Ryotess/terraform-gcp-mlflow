@@ -31,6 +31,7 @@ This repository provisions:
 - Terraform for infrastructure provisioning
 - An example GitLab CI pipeline for image build and deployment
 - A minimal GitHub Actions workflow for Terraform validation on GitHub
+- The container image installs `mlflow[auth,genai]` so mlflow would be protected by auth and can aggregate GenAI token usage and cost in the UI.
 
 This repository is opinionated but usable as-is. The fastest path is:
 1. Pick a GCP project and region.
